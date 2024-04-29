@@ -106,14 +106,20 @@ Performance also depends on the 'what' you are evaluating
   
 ```{r}
 # try a different time step
-sager_wy = sager %>% group_by(wy) %>% summarize(model=sum(model), obs=sum(obs))
+sager_wy = sager %>% 
+  group_by(wy) %>% 
+  summarize(model=sum(model), 
+            obs=sum(obs))
 
 nse(sager_wy$model, sager_wy$obs)
 cper(m=sager_wy$model, o=sager_wy$obs, weight.nse=0.8)
 
 # just look at august flow
 # first sum by month
-tmp = sager %>% group_by(month, year) %>% summarize(model=sum(model), obs=sum(obs))
+tmp = sager %>% 
+  group_by(month, year) %>% 
+  summarize(model=sum(model), 
+            obs=sum(obs))
 
 # now extract august
 sager_aug = subset(tmp, month==8)
@@ -129,7 +135,6 @@ compute_lowflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$d
 
 
 ```
-  
 
 # try another metric
 
