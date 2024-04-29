@@ -1,4 +1,4 @@
-#' combined metric hope & ben
+#' highflowmetrics
 #'
 #' Compute percent error between observation and model
 #' @param  m  model estimates
@@ -29,7 +29,7 @@ compute_highflowmetrics_all = function(m,o, month, day, year,wy, high_flow_month
   
   # now lets get monthly values
   tmp = flow %>% group_by(month, year) %>% dplyr::summarize(model=sum(m), obs=sum(o))
-  # now extract august
+  # now extract June
   high = subset(tmp, month %in% high_flow_months)
   high_month_err = mean(high$model-high$obs)
   high_month_cor=cor(high$model, high$obs)
