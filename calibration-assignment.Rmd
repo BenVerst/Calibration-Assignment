@@ -1,12 +1,12 @@
 ---
-title: ''
+title: 'Compute Metrics'
 author: "Hope Hahn, Ben Versteeg"
-date: "2024-04-29"
+date: "2024-04-30"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 library(tidyverse)
 library(patchwork)
@@ -22,6 +22,13 @@ In our combined metric, we will be combining:
 -   correlation between observed and modelled flow during the high flow period
 
 ```{r}
+# read in sager data
+sager = read.table("sager.txt", header=T)
+
+# add date
+sager = sager %>% mutate(date = paste(day,month,year, sep="/"))
+sager$date = as.Date(sager$date,"%d/%m/%Y")
+
 # highest flow month is 5
 sager %>% 
   group_by(month) %>% 
@@ -39,13 +46,6 @@ Here we read in the data files and prepare them.
 We chose to subset the years 1973 and under for calibration.
 
 ```{r}
-# read in sager data
-sager = read.table("sager.txt", header=T)
-
-# add date
-sager = sager %>% mutate(date = paste(day,month,year, sep="/"))
-sager$date = as.Date(sager$date,"%d/%m/%Y")
-
 # multiple results - lets say we've run the model for multiple years, each column
 # is streamflow for a different parameter set
 msage = read.table("sagerm.txt", header=T)
@@ -221,3 +221,5 @@ pre/post
 ```
 
 ### Discussion
+
+The metric that we used was similar to the example from class; however we decided to look at the maximum flow and high flow months. Higher flows are equally as important as low flows because high flows can impact local ecology in a variety of ways such as distribution of bug larvae, fish survival, and water supply. Based on this metric calibrated before 1973, the parameters predicted the post-calibration values more accurately. The pre calibration combined metric is `r precal`, and the post calibration combined metric value is `r postcal`.
