@@ -122,16 +122,16 @@ tmp = sager %>%
             obs=sum(obs))
 
 # now extract august
-sager_aug = subset(tmp, month==8)
+sager_aug = subset(tmp, month==6)
 cor(sager_aug$model, sager_aug$obs)
 
 # turn your evaluation metric into a function
-source("compute_lowflowmetrics.R")
-compute_lowflowmetrics
-compute_lowflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$day, year=sager$year, wy=sager$wy)
+source("hope_ben_compute_highflowmetrics.R")
+compute_highflowmetrics
+compute_highflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$day, year=sager$year, wy=sager$wy)
 
 # use different low flow months
-compute_lowflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$day, year=sager$year, wy=sager$wy, low_flow_months = c(7:9))
+compute_highflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$day, year=sager$year, wy=sager$wy, high_flow_months = c(5:7))
 
 
 ```
@@ -148,7 +148,7 @@ or create indices like Sobol Sensitivity Indices
 
 ```{r}
 
-perf = compute_lowflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$day, year=sager$year, wy=sager$wy, low_flow_months = c(7:9))
+perf = compute_highflowmetrics(m=sager$model,o=sager$obs, month=sager$month, day=sager$day, year=sager$year, wy=sager$wy, high_flow_months = c(5:7))
 
 perf = as.data.frame((perf))
 # remember you want error to be low but correlation to be high 
@@ -156,25 +156,25 @@ perf = as.data.frame((perf))
 
 # normalize by max error = if error is greater than this we don't care
 # many ideas -  maybe 50% of mean daily summer observed low flow
-tmp = sager %>% subset(month %in% c(7:9)) 
+tmp = sager %>% subset(month %in% c(5:7)) 
 errmax = mean(tmp$obs)*0.5
 
-perf = perf %>% mutate(annual_min_err_trans = max(0,(1-abs(annual_min_err/errmax) )))
+perf = perf %>% mutate(annual_max_err_trans = max(0,(1-abs(annual_max_err/errmax) )))
       
 # for monthly we can do a simpler thing to find maximum allowable errror   
-tmp = sager %>% subset(month %in% c(7:9)) %>% group_by(wy, month) %>% summarize(obs=sum(obs))
+tmp = sager %>% subset(month %in% c(5:7)) %>% group_by(wy, month) %>% summarize(obs=sum(obs))
 
 errmax = mean(tmp$obs)*0.5
  
-perf = perf %>% mutate(low_month_err_trans = max(0,(1-abs(low_month_err/errmax) )))
+perf = perf %>% mutate(high_month_err_trans = max(0,(1-abs(high_month_err/errmax) )))
 
 # now we have 4 measures that we can combine together
 
-perf = perf %>% mutate(combined = (annual_min_cor + annual_min_err_trans + low_month_err_trans + low_month_cor)/4)
+perf = perf %>% mutate(combined = (annual_max_cor + annual_max_err_trans + high_month_err_trans + high_month_cor)/4)
 perf
 # or weight differently - we know that minimum flows are hard to get to weight those differently
 
-perf = perf %>% mutate(combined2 = 0.1*annual_min_cor + 0.1*annual_min_err_trans + 0.4*low_month_err_trans+ 0.4*low_month_cor)
+perf = perf %>% mutate(combined2 = 0.1*annual_max_cor + 0.1*annual_max_err_trans + 0.4*high_month_err_trans+ 0.4*high_month_cor)
 
 perf
 
@@ -239,8 +239,8 @@ head(res)
 # use apply to compute for all the data
 # using the updated low flow metrics routing that also computed combined metrics
 
-source("compute_lowflowmetrics_all.R")
-res = msage %>% select(-date, -month, -day, -year, -wy ) %>% map_df(compute_lowflowmetrics_all, o=sager$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy)
+source("hope_ben_compute_highflowmetrics_all.R")
+res = msage %>% select(-date, -month, -day, -year, -wy ) %>% map_df(compute_highflowmetrics_all, o=sager$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy)
 
 
 # interesting to look at range of metrics - could use this to decide on
