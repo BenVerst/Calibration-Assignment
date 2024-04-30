@@ -9,3 +9,76 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+## Combined metric
+
+In our combined metric, we will be combining 
+
+INSERT HERE LATER.
+
+```{r}
+source(hope_ben_compute_highflowmetric_all.R)
+```
+
+## Calibration
+
+```{r}
+# multiple results - lets say we've run the model for multiple years, each column
+# is streamflow for a different parameter set
+msage = read.table("sagerm.txt", header=T)
+
+# lets say we know the start date from our earlier output
+msage$date = sager$date
+head(msage)
+msage$month = sager$month
+msage$year = sager$year
+msage$day = sager$day
+msage$wy = sager$wy
+
+# how can we plot all results - lets plot water year 1970 otherwise its hard to see
+msagel = msage %>% pivot_longer(cols=!c(date, month, year, day,wy), names_to="run", values_to="flow")
+
+p1=ggplot(subset(msagel, wy == 1970), aes(as.Date(date), flow, col=run))+geom_line()+theme(legend.position = "none")
+p1
+# lets add observed streamflow
+p1+geom_line(data=subset(sager, wy == 1970), aes(as.Date(date), obs), size=2, col="black", linetype=2)+labs(y="Streamflow", x="Date")
+
+
+# compute performance measures for all output
+res = msage %>% 
+  select(!c("date","month","year","day","wy")) %>%
+      map_dbl(nse, o=sager$obs )
+
+head(res)
+
+# another example using our low flow statistics
+# use apply to compute for all the data
+# using the updated low flow metrics routing that also computed combined metrics
+
+source("hope_ben_compute_highflowmetrics_all.R")
+res = msage %>% 
+  select(-date, -month, -day, -year, -wy ) %>% map_df(compute_highflowmetrics_all, o=sager$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy)
+
+
+# interesting to look at range of metrics - could use this to decide on
+# acceptable values
+summary(res)
+
+
+# graph range of performance measures
+resl = res %>% pivot_longer(cols=everything(), names_to="metric", values_to="value")
+ggplot(resl, aes(metric, value))+geom_boxplot()+facet_wrap(~metric, scales="free")
+
+# try this
+# assign an identifier to each row, use the same identify for columns of original streamflow data
+# we can then use that to pick data
+res$run = seq(from=1,to=nrow(res))
+head(msage)
+colnames(msage)=c(res$run, "date","month","year","day","wy")
+
+# best one
+best = res[which.max(res$combined),]
+msagel  =  msage %>% pivot_longer(cols=!c(date, month, year, day,wy), names_to="run", values_to="flow")
+ggplot(subset(msagel, run == best$run), aes(date, flow)) + geom_line()
+```
+
