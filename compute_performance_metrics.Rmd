@@ -114,14 +114,14 @@ sager_wy = sager %>%
 nse(sager_wy$model, sager_wy$obs)
 cper(m=sager_wy$model, o=sager_wy$obs, weight.nse=0.8)
 
-# just look at august flow
+# just look at June flow
 # first sum by month
 tmp = sager %>% 
   group_by(month, year) %>% 
   summarize(model=sum(model), 
             obs=sum(obs))
 
-# now extract august
+# now extract June
 sager_aug = subset(tmp, month==6)
 cor(sager_aug$model, sager_aug$obs)
 
