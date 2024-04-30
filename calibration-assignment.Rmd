@@ -208,9 +208,16 @@ postcal <- resl_post %>%
 postcal
   
 # plot metrics pre calibration
-ggplot(resl_calibration, aes(metric, value))+
+pre <- ggplot(resl_calibration, aes(metric, value))+
   geom_boxplot()+
   labs(title = "Metrics pre-calibration")
+
+# plot metrics post calibration
+post <- ggplot(resl_post, aes(metric, value))+
+  geom_boxplot()+
+  labs(title = "Metrics post-calibration")
+
+pre/post
 ```
 
 ### Discussion
