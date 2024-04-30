@@ -240,7 +240,9 @@ head(res)
 # using the updated high flow metrics routing that also computed combined metrics
 
 source("hope_ben_compute_highflowmetrics_all.R")
-res = msage %>% select(-date, -month, -day, -year, -wy ) %>% map_df(compute_highflowmetrics_all, o=sager$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy)
+res = msage %>% 
+  select(-date, -month, -day, -year, -wy ) %>% 
+  map_df(compute_highflowmetrics_all, o=sager$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy)
 
 
 # interesting to look at range of metrics - could use this to decide on
