@@ -7,88 +7,210 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(patchwork)
 ```
 
-
-## Combined metric
+## PART 1: Combined metric
 
 In our combined metric, we will be combining:
 
-* relative error in annual maximum flow estimate
-* relative error in monthly flow during high flow period
-* correlation between observed and modelled annual maximum flow
-* correlation between observed and modelled flow during the high flow period
+-   relative error in annual maximum flow estimate
+-   relative error in monthly flow during high flow period
+-   correlation between observed and modelled annual maximum flow
+-   correlation between observed and modelled flow during the high flow period
 
 ```{r}
+# highest flow month is 5
+sager %>% 
+  group_by(month) %>% 
+  summarize(mean(obs))
+
 source("hope_ben_compute_highflowmetrics_all.R")
 ```
 
-## Calibration
+## PART 2: Calibration
+
+**Read in Data**
+
+Here we read in the data files and prepare them.
+
+We chose to subset the years 1973 and under for calibration.
 
 ```{r}
+# read in sager data
+sager = read.table("sager.txt", header=T)
+
+# add date
+sager = sager %>% mutate(date = paste(day,month,year, sep="/"))
+sager$date = as.Date(sager$date,"%d/%m/%Y")
+
 # multiple results - lets say we've run the model for multiple years, each column
 # is streamflow for a different parameter set
 msage = read.table("sagerm.txt", header=T)
 
+# label by simulation
+nsim = ncol(msage)
+snames = sprintf("S%d",seq(from=1, to=nsim))
+colnames(msage)=snames
+
 # use the date from the previous dataset
 msage$date = sager$date
-head(msage)
 msage$month = sager$month
 msage$year = sager$year
 msage$day = sager$day
 msage$wy = sager$wy
 
+# lets add observed
+msage = left_join(msage, sager[,c("obs","date")], by=c("date"))
+
+# pivot longer
 msagel = msage %>%
   pivot_longer(cols=!c(date, month, year, day,wy), 
                names_to="run", 
                values_to="flow")
 
 # create a subset of data for calibration
-msage_calibration <- msage %>% 
-  filter(wy == 1966)
+msage_calibration <- 
+  subset(msage, wy <= 1973)
+```
 
-msage1_calibration <- msagel %>% 
-  filter(wy == 1966)
+**Collect Metrics**
 
-sager_calibration <- sager %>% 
-  filter(wy == 1966)
+We used our function to collect metrics on the calibration data.
 
-# get metrics for  
+```{r}
+# get metrics 
 res_calibration = msage_calibration %>% 
-  select(-date, -month, -day, -year, -wy ) %>% 
+  select(-date, -month, -day, -year, -wy, -obs) %>% 
   # this line applies our function to the dataset
   map_df(compute_highflowmetrics_all, 
-         o=sager_calibration$obs, 
+         o=msage_calibration$obs, 
          month=msage_calibration$month, 
          day=msage_calibration$day, 
          year=msage_calibration$year, 
          wy=msage_calibration$wy)
 
-# plot the thing
+# row that adds simulation number
+res_calibration$sim = snames
+
+# graph range of performance measures
 resl_calibration = res_calibration %>% 
-  pivot_longer(cols=everything(), 
-               names_to="metric",
+  pivot_longer(-sim, 
+               names_to="metric", 
                values_to="value")
 
+# graph the distribution of metrics over the calibration data
 ggplot(resl_calibration, aes(metric, value))+
   geom_boxplot()+
-  facet_wrap(~metric, scales="free")
-
-# try this
-# assign an identifier to each row, use the same identify for columns of original streamflow data
-# we can then use that to pick data
-res_calibration$run = seq(from=1,to=nrow(res_calibration))
-head(msage_calibration)
-colnames(msage_calibration)=c(res_calibration$run, "date","month","year","day","wy")
-
-# best one
-best_calibration = res_calibration[which.max(res_calibration$combined),]
-msagel_calibration  =  msage_calibration %>%
-  pivot_longer(cols=!c(date, month, year, day,wy), 
-                   names_to="run", 
-                   values_to="flow")
-
-ggplot(subset(msagel_calibration, run == best$run), aes(date, flow)) + geom_line()
-
+  facet_wrap(~metric, scales="free") +
+  labs(title = "Metrics of calibration")
 ```
 
+**Best and worst simulations**
+
+We plotted the flow of the best simulation by year. Black is the model data and the red line is the observed data.
+
+```{r}
+# best simulation
+best_calibration = res_calibration[which.max(res_calibration$combined),]
+
+# get the parameters for worst simulation
+worst_calibration = res_calibration[which.min(res_calibration$combined),]
+
+best_calibration$sim
+worst_calibration$sim
+
+# plot the flow by year for the best parameter
+ggplot(msage, 
+       aes(date, msage[,best_calibration$sim])) + 
+  geom_line()+
+  geom_line(aes(date, obs), col="red")+
+  labs(title = "Best Parameter Simulation over whole period",
+       y = "Flow")
+
+# plot the flow by year for the best parameter over calibration period
+ggplot(msage_calibration, 
+       aes(date, msage_calibration[,best_calibration$sim])) + 
+  geom_line()+
+  geom_line(aes(date, obs), col="red")+
+  labs(title = "Best Parameter Simulation over calibration period",
+       y = "Flow")
+```
+
+The best simulation is `r best_calibration$sim`, and the worst simulation is `r worst_calibration$sim`.
+
+```{r}
+# compare best and worst calibration
+compruns = msage %>% 
+  select(best_calibration$sim, date, obs, month, day, year, wy)
+
+# look at best and worst calibration post calibration period
+#compruns = subset(compruns, wy > 1973)
+
+compruns_mwy = compruns %>% 
+  select(-c(day,date, year)) %>% 
+  group_by(month, wy) %>%
+  summarize(across(everything(), mean))
+
+compruns_mwyl = compruns_mwy %>% 
+  pivot_longer(cols=!c(month,wy), 
+               names_to="sim",
+               values_to="flow")
+
+compruns_mwyl %>% 
+  subset(month==6) %>% 
+  ggplot(aes(sim,flow ))+
+  geom_boxplot()
+```
+
+```{r}
+# post calibration period
+msage_post <-
+  subset(msage, wy > 1973)
+
+# compare pre and post calibration performance
+
+# get metrics 
+res_post = msage_post %>% 
+  select(-date, -month, -day, -year, -wy, -obs) %>% 
+  # this line applies our function to the dataset
+  map_df(compute_highflowmetrics_all, 
+         o=msage_post$obs, 
+         month=msage_post$month, 
+         day=msage_post$day, 
+         year=msage_post$year, 
+         wy=msage_post$wy)
+
+# row that adds simulation number
+res_post$sim = snames
+
+# graph range of performance measures
+resl_post = res_post %>% 
+  pivot_longer(-sim, 
+               names_to="metric", 
+               values_to="value")
+
+# graph the distribution of metrics over the calibration data
+ggplot(resl_post, aes(metric, value))+
+  geom_boxplot()+
+  facet_wrap(~metric, scales="free") +
+  labs(title = "Metrics of post-calibration")
+
+# compare combined metric pre and post calibration
+precal <- resl_calibration %>% 
+  filter(metric == "combined" & sim == "S33") 
+precal
+
+postcal <- resl_post %>% 
+  filter(metric == "combined" & sim == "S33") 
+postcal
+  
+# plot metrics pre calibration
+ggplot(resl_calibration, aes(metric, value))+
+  geom_boxplot()+
+  labs(title = "Metrics pre-calibration")
+```
+
+### Discussion

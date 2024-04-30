@@ -12,7 +12,7 @@
 #' @param max_err_high_month
 #' @return annual_max_err, annual_max_corr, high_month_cor, high_month_err
 
-compute_highflowmetrics_all = function(m,o, month, day, year,wy, high_flow_months=6,
+compute_highflowmetrics_all = function(m,o, month, day, year,wy, high_flow_months=5,
                                       max_err_annual_max=NULL, max_err_high_month=NULL, wts=c(0.25,0.25,0.25,0.25)) {
   
   flow = cbind.data.frame(m,o, month, day, year,wy)
